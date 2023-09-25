@@ -14,7 +14,8 @@ class BLOOMLM(BaseLM):
         subfolder=None,
         tokenizer=None,
         batch_size=1,
-        is_fp16=False,
+        dtype=torch.float32,
+        max_length=-1
     ):
         super().__init__()
 
@@ -35,12 +36,16 @@ class BLOOMLM(BaseLM):
                 if torch.cuda.is_available()
                 else torch.device("cpu")
             )
+        self.dtype = dtype
         self.model = transformers.AutoModelForCausalLM.from_pretrained(
             pretrained,
             revision=revision + ("/" + subfolder if subfolder is not None else ""),
-            torch_dtype=torch.float16 if is_fp16 else torch.float32,
+            torch_dtype=self.dtype
         )
-        self.is_fp16 = is_fp16
+        if max_length != -1:
+            self.model.config.n_ctx = max_length
+        else:
+            self.model.config.n_ctx = 512
         self.pretrained = pretrained
         self.no_split_modules = self.model._no_split_modules
         self.model.eval()
@@ -56,19 +61,16 @@ class BLOOMLM(BaseLM):
 
     def prepare_for_inference(self):
         self.no_split_modules = self.model._no_split_modules
-        if self.is_fp16:
-            self.model.to(torch.float16)
-        else:
-            self.model.to(torch.float32)
+        self.model.to(self.dtype)
         max_memory = get_balanced_memory(
             self.model,
             no_split_module_classes=self.no_split_modules,
-            dtype=torch.float16 if self.is_fp16 else torch.float32,
+            dtype=self.dtype
         )
         device_map = infer_auto_device_map(
             self.model,
             no_split_module_classes=self.no_split_modules,
-            dtype=torch.float16 if self.is_fp16 else torch.float32,
+            dtype=self.dtype,
             max_memory=max_memory,
         )
         print(device_map)
@@ -81,13 +83,8 @@ class BLOOMLM(BaseLM):
         return self.tokenizer.eos_token_id
 
     @property
-    def max_length(self):
-        return 512
-        # try:
-        #     return self.model.config.n_ctx
-        # except AttributeError:
-        #     # gptneoconfig doesn't have n_ctx apparently
-        #     return self.model.config.max_position_embeddings
+    def max_length(self,):
+        return self.model.config.n_ctx
 
     @property
     def max_gen_toks(self):

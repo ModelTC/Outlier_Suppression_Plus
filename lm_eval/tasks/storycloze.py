@@ -40,7 +40,7 @@ class StoryCloze(Task):
     DATASET_PATH = inspect.getfile(lm_eval.datasets.story_cloze.story_cloze)
     DATASET_NAME = None
 
-    def __init__(self, data_dir='/mnt/lustre/weixiuying/datasets/nlp_datasets/story_cloze'):
+    def __init__(self, data_dir='/mnt/lustre/weixiuying.vendor/datasets/nlp_datasets/story_cloze'):
         """
         StoryCloze is not publicly available. You must download the data by
         following https://cs.rochester.edu/nlp/rocstories/ and pass the folder

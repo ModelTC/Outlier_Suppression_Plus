@@ -1,5 +1,6 @@
 from .quant_opt import QuantizedOPTForCausalLM  # noqa: F401
 from .quant_bloom import QuantizedBloomForCausalLM  # noqa: F401
+from .quant_llama import QuantizedLlamaForCausalLM
 from quant_transformer.quantization.observer import ObserverBase
 _SUPPORT_MODELS = ['opt', 'bloom']
 

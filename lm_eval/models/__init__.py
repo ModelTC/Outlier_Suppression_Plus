@@ -4,6 +4,7 @@ from . import textsynth
 from . import dummy
 from . import opt
 from . import bloom
+from . import llama
 
 
 MODEL_REGISTRY = {
@@ -13,7 +14,8 @@ MODEL_REGISTRY = {
     "textsynth": textsynth.TextSynthLM,
     "dummy": dummy.DummyLM,
     'opt': opt.OPTLM,
-    'bloom': bloom.BLOOMLM
+    'bloom': bloom.BLOOMLM,
+    'llama': llama.LLAMALM,
 }
 
 

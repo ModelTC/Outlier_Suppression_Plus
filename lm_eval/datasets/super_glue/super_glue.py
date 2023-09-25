@@ -334,7 +334,7 @@ class SuperGlue(datasets.GeneratorBasedBuilder):
             # Note that question will only be the X in the statement "What's
             # the X for this?".
             features=["premise", "choice1", "choice2", "question"],
-            data_url="/mnt/lustre/weixiuying/datasets/nlp_datasets/copa/COPA.zip",
+            data_url="/mnt/lustre/weixiuying.vendor/datasets/nlp_datasets/copa/COPA.zip",
             citation=_COPA_CITATION,
             url="http://people.ict.usc.edu/~gordon/copa.html",
         ),
@@ -353,7 +353,7 @@ class SuperGlue(datasets.GeneratorBasedBuilder):
             # will contain @placeholder as a substring, which represents the word
             # to be substituted in.
             features=["passage", "query", "entities", "entity_spans", "answers"],
-            data_url="/mnt/lustre/weixiuying/datasets/nlp_datasets/record/ReCoRD.zip",
+            data_url="/mnt/lustre/weixiuying.vendor/datasets/nlp_datasets/record/ReCoRD.zip",
             citation=_RECORD_CITATION,
             url="https://sheng-z.github.io/ReCoRD-explorer/",
         ),
@@ -362,7 +362,7 @@ class SuperGlue(datasets.GeneratorBasedBuilder):
             description=_RTE_DESCRIPTION,
             features=["premise", "hypothesis"],
             label_classes=["entailment", "not_entailment"],
-            data_url="/mnt/lustre/weixiuying/datasets/nlp_datasets/rte/RTE.zip",
+            data_url="/mnt/lustre/weixiuying.vendor/datasets/nlp_datasets/rte/RTE.zip",
             citation=_RTE_CITATION,
             url="https://aclweb.org/aclwiki/Recognizing_Textual_Entailment",
         ),

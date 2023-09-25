@@ -1,11 +1,14 @@
+import math
 import torch
 import torch.nn as nn
 import logging
+from scipy.optimize import minimize_scalar
+from .fake_quant import QuantizeBase
 from .observer import MinMaxObserver
 from .util_quant import fake_quantize_per_channel_affine, fake_quantize_per_tensor_affine
-from quant_transformer.model.util_layernorm import QuantizedLayerNorm
+import quant_transformer.model.quant_llama as quant_llama
+# QuantizedLlamaRMSNorm, apply_rotary_pos_emb, rotate_half
 logger = logging.getLogger('OS+')
-shift_list = []
 scale_list = []
 
 
@@ -13,19 +16,25 @@ def migration(act, weight, a_qconfig, w_qconfig, module_type, extra_dict=None):
     migrator = Migrator1DRangeSearch(act, weight, a_qconfig, w_qconfig, module_type, extra_dict)
     best_scale = migrator()
     scale_list.append(best_scale)
-    shift_list.append(extra_dict['shift'])
     return best_scale
 
 
 def fuse_migration(model):
     cnt = 0
+    disable_down_proj = True
     for name, module in model.named_modules():
-        if isinstance(module, QuantizedLayerNorm):
-            if cnt < len(shift_list):
-                module.bias.data -= shift_list[cnt]
+        if 'down_proj.act_fake_quant' in name:
+            disable_down_proj = False
+    for name, module in model.named_modules():
+        if isinstance(module, quant_llama.QuantizedLlamaRMSNorm):
+            if cnt < len(scale_list):
                 module.weight.data /= scale_list[cnt]
-                module.bias.data /= scale_list[cnt]
                 cnt += 1
+        if not disable_down_proj:
+            if 'up_proj.module.weight_fake_quant' in name and isinstance(module, QuantizeBase):
+                if cnt < len(scale_list):
+                    module.scale.data = (module.scale.data / scale_list[cnt]).reshape(-1, 1)
+                    cnt += 1
 
 
 class MigratorBase(nn.Module):
@@ -60,8 +69,10 @@ class MigratorBase(nn.Module):
     def get_output(self, input, weight):
         if self.module_type == 'qkv':
             output = self.qkv_function(input, weight)
-        elif self.module_type == 'fc1':
-            output = self.fc1_function(input, weight)
+        elif self.module_type == 'up_and_gate':
+            output = self.up_function(input, weight)
+        elif self.module_type == 'down_proj':
+            output = self.down_function(input, weight)
         else:
             raise NotImplementedError
         return output
@@ -106,10 +117,11 @@ class MigratorBase(nn.Module):
 
     def get_best_scale(self, min_range, max_range):
         best_scale = self.cac_scale(min_range, max_range)
-        logger.info('the max of best scale is {:.2f}, best min range is {:.2f}, \
+        logger.info('the best scale is {:.2f}, best min range is {:.2f}, \
             best max range is {:.2f}'.format(best_scale.max(), (self.input / best_scale).min(), (self.input / best_scale).max()))
         logger.info('the range of weight becomes {:.2f}, {:.2f}'.format((self.weight * best_scale).min(), (self.weight * best_scale).max()))
         return best_scale
+        # return best_scale
 
     def loss_fx(self, pred, tgt, p=2.0):
         return (pred - tgt).abs().pow(p).sum(-1).mean()
@@ -121,29 +133,38 @@ class MigratorBase(nn.Module):
 
     def qkv_function(self, input, weight):
         B, N, C = input.shape
-        qkv = torch.matmul(input, weight.T) + self.extra_dict['bias']
-        # bs, token, 3, heads, dim
-        # 3, bs, heads, token, dim
-        qkv = qkv.reshape(B, N, 3, self.extra_dict['num_heads'], self.extra_dict['head_dim']).permute(2, 0, 3, 1, 4)
-        q = qkv[0].reshape(B * self.extra_dict['num_heads'], N, self.extra_dict['head_dim'])
-        # bs, heads, dim, token  bs x heads x token x dim
-        k = qkv[1].transpose(-2, -1).reshape(B * self.extra_dict['num_heads'], self.extra_dict['head_dim'], N)
-        v = qkv[2]
-        attn = self.extra_dict['alibi'].baddbmm(
-            batch1=q,
-            batch2=k,
-            beta=1.0,
-            alpha=self.extra_dict['scaling'],
-        )
-        attn = attn.view(B, self.extra_dict['num_heads'], N, N)
+        head_dim = self.extra_dict['head_dim']
+        qkv = torch.matmul(input, weight.T)
+        sz_q = self.extra_dict['num_heads'] * head_dim
+        sz_kv = self.extra_dict['num_key_value_heads'] * head_dim
+        q = qkv[:, :, : sz_q].view(B, N, self.extra_dict['num_heads'], head_dim).transpose(1, 2)
+        k = qkv[:, :, sz_q: sz_q + sz_kv].view(B, N, self.extra_dict['num_key_value_heads'], head_dim).transpose(1, 2)
+        v = qkv[:, :, sz_q + sz_kv: ].view(B, N, self.extra_dict['num_key_value_heads'], head_dim).transpose(1, 2)
 
-        attn = torch.masked_fill(attn, self.extra_dict['attention_mask'], torch.finfo(self.dtype).min)
+        kv_seq_len = k.shape[-2]
+        cos, sin = self.extra_dict['cos_cached'][:, :, :kv_seq_len, ...], self.extra_dict['sin_cached'][:, :, :kv_seq_len, ...]
+        q, k = quant_llama.apply_rotary_pos_emb(q, k, cos, sin, self.extra_dict['position_ids'])
+        k = quant_llama.repeat_kv(k, self.extra_dict['num_key_value_groups'])
+        v = quant_llama.repeat_kv(v, self.extra_dict['num_key_value_groups'])
+        attn = (q / math.sqrt(head_dim)) @ k.transpose(-2, -1)
+        attn = attn + self.extra_dict['attention_mask']
+        attn = torch.max(attn, torch.tensor(torch.finfo(self.dtype).min))
         attn = attn.softmax(dim=-1, dtype=torch.float32).to(self.dtype)
-
+        # bs, heads, token, token @ (bs, heads, token, dim)
+        # bs, token, heads, dim
+        # bs, heads, token, dim
         output = (attn @ v).transpose(1, 2).reshape(B, N, C)
         return output[self.extra_dict['observation_mask'] == 1].to(torch.float32)
 
-    def fc1_function(self, input, weight):
+    def up_function(self, input, weight):
+        B, N, _ = input.shape
+        C, _ = weight.shape
+        output = torch.matmul(input, weight.T).reshape(B, N, 2, C // 2).permute(2, 0, 1, 3)
+        gate, up = output[0], output[1]
+        output = self.extra_dict['act_fn'](gate) * up
+        return output[self.extra_dict['observation_mask'] == 1].to(torch.float32)
+
+    def down_function(self, input, weight):
         output = torch.matmul(input, weight.T)
         return output[self.extra_dict['observation_mask'] == 1].to(torch.float32)
 
@@ -152,7 +173,7 @@ class MigratorBase(nn.Module):
 
 
 class Migrator1DRangeSearch(MigratorBase):
-    # if adopting it, we shall first shift the values
+
     def __init__(self, input, weight, a_qconfig, w_qconfig, module_type, extra_dict=None):
         super().__init__(input, weight, a_qconfig, w_qconfig, module_type, extra_dict)
         self.num = max(100, int(self.amx / 0.5))
@@ -163,7 +184,7 @@ class Migrator1DRangeSearch(MigratorBase):
 
     def search_migrate_range_1D(self,):
         best_loss = None
-        bounds = (1.0, max(-self.amn.item(), self.amx.item()))
+        bounds = (0.1, max(-self.amn.item(), self.amx.item()))
         step = (bounds[1] - bounds[0]) / self.num
         mn_range = -bounds[1]
         mx_range = bounds[1]
@@ -185,3 +206,4 @@ class Migrator1DRangeSearch(MigratorBase):
     def forward(self,):
         best_range = self.search_migrate_range_1D()
         return self.get_best_scale(*best_range)
+

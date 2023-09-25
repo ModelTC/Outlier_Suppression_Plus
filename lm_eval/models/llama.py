@@ -1,15 +1,15 @@
-import transformers
 import torch
 from lm_eval.base import BaseLM
+from transformers import LlamaForCausalLM, LlamaTokenizer
 from accelerate.big_modeling import dispatch_model, infer_auto_device_map, get_balanced_memory
 
 
-class OPTLM(BaseLM):
+class LLAMALM(BaseLM):
 
     def __init__(
         self,
         device="cuda",
-        pretrained="opt",
+        pretrained="llama",
         revision="main",
         subfolder=None,
         tokenizer=None,
@@ -37,51 +37,28 @@ class OPTLM(BaseLM):
                 else torch.device("cpu")
             )
         self.dtype = dtype
-        self.model = transformers.AutoModelForCausalLM.from_pretrained(
+        self.model = LlamaForCausalLM.from_pretrained(
             pretrained,
             revision=revision + ("/" + subfolder if subfolder is not None else ""),
             torch_dtype=self.dtype
         )
         if max_length != -1:
-            self.model.config.max_position_embeddings = max_length
+            self.model.config.max_sequence_length = max_length
         self.pretrained = pretrained
         self.no_split_modules = self.model._no_split_modules
         self.model.eval()
-        self.tokenizer = transformers.AutoTokenizer.from_pretrained(
+        self.tokenizer = LlamaTokenizer.from_pretrained(
             pretrained if tokenizer is None else tokenizer,
             revision=revision,
             # subfolder=subfolder,
-            use_fast=False,
         )
-        assert isinstance(
-            self.tokenizer,
-            (
-                transformers.GPT2Tokenizer,
-                transformers.GPT2TokenizerFast,
-                transformers.T5Tokenizer,
-                transformers.T5TokenizerFast,
-            ),
-        ), "this tokenizer has not been checked for compatibility yet!"
-
+        if self.tokenizer.pad_token_id is None:
+            self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
         self.vocab_size = self.tokenizer.vocab_size
-
-        if isinstance(
-            self.tokenizer, (transformers.GPT2Tokenizer, transformers.GPT2TokenizerFast)
-        ):
-            assert self.tokenizer.encode("hello\n\nhello") == [
-                2,
-                42891,
-                50118,
-                50118,
-                42891,
-            ], self.tokenizer.encode("hello\n\nhello")
-
-        # multithreading and batching
         self.batch_size_per_gpu = batch_size  # todo: adaptive batch size
 
     def prepare_for_inference(self):
         self.no_split_modules = self.model._no_split_modules
-        self.model.tie_weights()
         self.model.to(self.dtype)
         max_memory = get_balanced_memory(
             self.model,
@@ -105,7 +82,7 @@ class OPTLM(BaseLM):
 
     @property
     def max_length(self):
-        return self.model.config.max_position_embeddings
+        return self.model.config.max_sequence_length
 
     @property
     def max_gen_toks(self):
@@ -136,7 +113,7 @@ class OPTLM(BaseLM):
         logits returned from the model
         """
         with torch.no_grad():
-            return self.model(inps, attention_mask=attention_mask)[0][:, :, :50265]
+            return self.model(inps, attention_mask=attention_mask)[0][:, :, :len(self.tokenizer)]
 
     def _model_generate(self, context, max_length, eos_token_id):
         return self.model.generate(

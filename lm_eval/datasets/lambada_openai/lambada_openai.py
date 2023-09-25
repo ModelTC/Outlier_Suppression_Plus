@@ -49,7 +49,7 @@ _HOMEPAGE = "https://zenodo.org/record/2630551#.X4Xzn5NKjUI"
 _LICENSE = ""
 
 _URLS = {
-    "default": "/mnt/lustre/weixiuying/datasets/nlp_datasets/lambada/lambada_test.jsonl",
+    "default": "/mnt/lustre/weixiuying.vendor/datasets/nlp_datasets/lambada/lambada_test.jsonl",
     "en": "http://eaidata.bmk.sh/data/lambada_test_en.jsonl",
     "fr": "http://eaidata.bmk.sh/data/lambada_test_fr.jsonl",
     "de": "http://eaidata.bmk.sh/data/lambada_test_de.jsonl",

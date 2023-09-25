@@ -1,17 +1,19 @@
-quant: 
+quant:
     a_qconfig:
         quantizer: FixedFakeQuantize
         observer: AvgMinMaxObserver # EMAMSEObserver EMAMinMaxObserver EMAQuantileObserver EMAPruneMinMaxObserver
         bit: 8
-        symmetric: False
+        symmetric: True
         ch_axis: -1 # perlayer -1 perchannel 0
     w_qconfig:
-        quantizer: FixedFakeQuantize
+        quantizer: FixedQuantize
         observer: MinMaxObserver
         bit: 8
-        symmetric: False
-        ch_axis: 0 # perchannel 0 perlayer -1
+        symmetric: True
+        ch_axis: -1 # perchannel 0 perlayer -1
     calibrate: 128
-    calibrate_path: /mnt/lustre/weixiuying/datasets/nlp_datasets/pile_cali    
+    calibrate_path: /mnt/lustre/weixiuying.vendor/datasets/nlp_datasets/pile_cali    
     is_remove_padding: True
     migrate: True
+model:
+    max_length: 512

@@ -552,6 +552,7 @@ class QuantizedOPTDecoder(QuantizedModule):
         # embed positions
         if attention_mask is None:
             attention_mask = torch.ones(inputs_embeds.shape[:2], dtype=torch.bool, device=inputs_embeds.device)
+            observation_mask = attention_mask.clone()
         pos_embeds = self.embed_positions(attention_mask, past_key_values_length)
         attention_mask = self._prepare_decoder_attention_mask(
             attention_mask, input_shape, inputs_embeds, past_key_values_length

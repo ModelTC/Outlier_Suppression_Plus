@@ -76,7 +76,7 @@ class StoryCloze(datasets.GeneratorBasedBuilder):
 
     def _split_generators(self, dl_manager):
         # path_to_manual_folder = os.path.abspath(os.path.expanduser(dl_manager.manual_dir))
-        path_to_manual_folder = "/mnt/lustre/weixiuying/datasets/nlp_datasets/story_cloze"
+        path_to_manual_folder = "/mnt/lustre/weixiuying.vendor/datasets/nlp_datasets/story_cloze"
 
         if self.config.name == "2016":
             test_file = os.path.join(path_to_manual_folder, "cloze_test_test__spring2016 - cloze_test_ALL_test.csv")
