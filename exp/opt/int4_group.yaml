@@ -1,14 +1,14 @@
 quant:
     a_qconfig:
         quantizer: GroupFixedFakeQuantize
-        group_size: 512
+        group_size: 1024
         observer: MinMaxObserver # EMAMSEObserver EMAMinMaxObserver EMAQuantileObserver EMAPruneMinMaxObserver
         bit: 4
         symmetric: False
         ch_axis: 0
     w_qconfig:
         quantizer: GroupFixedQuantize
-        group_size: 512
+        group_size: 1024
         observer: MinMaxObserver
         bit: 4
         symmetric: False

@@ -4,7 +4,7 @@ Official PyTorch implementation of  <a href="https://arxiv.org/abs/2304.09145">O
 
 ## Overview
 
-The Outlier Suppression+ (OS+) effectively suppresses outliers in large language models for better quantization performance without extra inference burden. It first identifies the outlier asymmetric shape across channels and proposes a channel-wise shifting technique with a migration pattern to eliminate it. It then focuses on the outlier concentration phenomenon and proposes to scale down outlier channels toward a dedicated objective. 
+The Outlier Suppression+ (OS+) effectively suppresses outliers in large language models for better quantization performance without extra inference burden. It first identifies the outlier asymmetric shape across channels and proposes a channel-wise shifting technique with a migration pattern to eliminate it. It then focuses on the outlier concentration phenomenon and proposes to scale down outlier channels toward an elaborate objective. 
 
 <p align="center">
   <img src="figure/outlier_suppression_plus.png">
@@ -12,7 +12,7 @@ The Outlier Suppression+ (OS+) effectively suppresses outliers in large language
 
 We assess the efficacy of our approach under both standard and fine-grained quantization settings. On standard one, OS+ achieves near-floating-point performance on 8-bit and 6-bit BERT, OPTs, BLOOM, and BLOOMZ. On fine-grained one, OS+ can surpass others by 9.41\% on 4-bit LLaMA with per-token quantization and obtain lossless results on 4-bit OPT with per-group quantization. 
 
-In the following sections, [Support](#support) gives supported models and quantization schemes, [Getting Started](#getting started) introduces the whole procedure to run this project including data preparation, quantization, evaluation to updated model export. [Evaluation](#evaluation) lists configs for each table in the paper for others to reproduce.
+In the following sections, [Support](#support) gives supported models and quantization schemes, [Getting Started](#getting started) introduces the whole procedure to run this project including data preparation, quantization, evaluation and updated model export. [Evaluation](#evaluation) lists configs for each table in the paper for other researchers to reproduce.
 
 ## Support
 
@@ -146,7 +146,7 @@ quant:
         symmetric: True # True: symmetric quantization, False: asymmetric one
         ch_axis: -1  # 0: per-channel quantization, -1: per-layer one
     calibrate: 128 # calibration size
-    calibrate_path: /mnt/lustre/weixiuying.vendor/datasets/nlp_datasets/pile_cali # calibration path, make sure there is _cali in the name
+    calibrate_path: /mnt/lustre/weixiuying.vendor/datasets/nlp_datasets/pile_cali # calibration dataset path, make sure there is _cali in the name
 	  except_quantizer: null
     is_remove_padding: True # True: remove [PAD] during calibration
     migrate: True # True: shifting and scaling operations, False: no shifting and scaling operations.
