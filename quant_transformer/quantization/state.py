@@ -1,5 +1,5 @@
 import logging
-from .fake_quant import LSQFakeQuantize, QuantizeBase, LSQPlusFakeQuantize
+from .fake_quant import QuantizeBase
 from .observer import ObserverBase
 logger = logging.getLogger("OS+")
 
@@ -9,8 +9,8 @@ def enable_calibration_woquantization(model, quantizer_type='fake_quant', except
     for name, submodule in model.named_modules():
         if isinstance(submodule, QuantizeBase):
             if (quantizer_type not in name) or \
-               (except_quantizer is not None and name in except_quantizer):
-                logger.debug('The except_quantizer is {}'.format(name))
+               (except_quantizer is not None and name.split('.')[-1] in except_quantizer):
+                logger.info('The except_quantizer is {}'.format(name))
                 submodule.disable_observer()
                 submodule.disable_fake_quant()
                 continue
@@ -24,17 +24,13 @@ def enable_calibration_quantization(model, quantizer_type='fake_quant', except_q
     for name, submodule in model.named_modules():
         if isinstance(submodule, QuantizeBase):
             if (quantizer_type not in name) or \
-               (except_quantizer is not None and name in except_quantizer):
+               (except_quantizer is not None and name.split('.')[-1] in except_quantizer):
                 logger.debug('The except_quantizer is {}'.format(name))
                 submodule.disable_observer()
                 submodule.disable_fake_quant()
                 continue
             logger.debug('Enable observer and Enable quant: {}'.format(name))
-            if not isinstance(submodule, (LSQFakeQuantize, LSQPlusFakeQuantize)):
-                submodule.enable_observer()
-            else:
-                submodule.disable_observer()
-                logger.info('Extrally disable observer for LSQ/LSQPlusFakeQuantize during training!')
+            submodule.enable_observer()
             submodule.enable_fake_quant()
 
 
@@ -43,7 +39,7 @@ def enable_quantization(model, quantizer_type='fake_quant', except_quantizer=Non
     for name, submodule in model.named_modules():
         if isinstance(submodule, QuantizeBase):
             if (quantizer_type not in name) or \
-               (except_quantizer is not None and name in except_quantizer):
+               (except_quantizer is not None and name.split('.')[-1] in except_quantizer):
                 logger.debug('The except_quantizer is {}'.format(name))
                 submodule.disable_observer()
                 submodule.disable_fake_quant()

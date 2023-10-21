@@ -1,0 +1,20 @@
+quant: 
+    a_qconfig:
+        quantizer: TokenFixedFakeQuantize
+        observer: MinMaxObserver # EMAMSEObserver EMAMinMaxObserver EMAQuantileObserver EMAPruneMinMaxObserver
+        bit: 6
+        symmetric: False
+        ch_axis: 0
+    w_qconfig:
+        quantizer: FixedQuantize
+        observer: MinMaxObserver
+        bit: 6
+        symmetric: False
+        ch_axis: 0 # perchannel 0 perlayer -1
+    calibrate: 128
+    calibrate_path: /mnt/cache/weixiuying.vendor/wikitext/wiki_cali
+    is_remove_padding: True
+    except_quantizer: [query_permute_post_act_fake_quant, key_transpose_post_act_fake_quant, value_permute_post_act_fake_quant, attention_probs_post_act_fake_quant] # disable bmm quantization
+    migrate: True
+model:
+    max_length: 2048

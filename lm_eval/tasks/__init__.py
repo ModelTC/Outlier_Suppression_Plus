@@ -49,6 +49,7 @@ from . import blimp
 from . import asdiv
 from . import gsm8k
 from . import storycloze
+from . import wikitext
 
 ########################################
 # Translation tasks
@@ -81,6 +82,8 @@ all_translation_benchmarks = {
 
 
 TASK_REGISTRY = {
+    # wiki
+    "wikitext": wikitext.WikiText,
     # GLUE
     "cola": glue.CoLA,
     "mnli": glue.MNLI,

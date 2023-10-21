@@ -504,6 +504,7 @@ class QuantizedBloomModel(QuantizedModule, ModuleUtilsMixin):
             seq_length_with_past = seq_length_with_past + past_key_values_length
         if attention_mask is None:
             attention_mask = torch.ones((batch_size, seq_length_with_past), device=hidden_states.device)
+            observation_mask = attention_mask.clone()
         else:
             attention_mask = attention_mask.to(hidden_states.device)
 

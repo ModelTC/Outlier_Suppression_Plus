@@ -68,9 +68,19 @@ class MigratorBase(nn.Module):
         return output
 
     def quantize(self, X, observer, clipping_range=None):
+        org_shape = X.shape
         if clipping_range is not None:
-            min_val_cur, max_val_cur = clipping_range
+            if 'Group' in self.a_qconfig.quantizer:
+                X = X.reshape(-1, self.a_qconfig.group_size)
+                min_val_cur, max_val_cur = observer(X)
+            elif 'Token' in self.a_qconfig.quantizer:
+                X = X.reshape(-1, org_shape[-1])
+                min_val_cur, max_val_cur = observer(X)
+            else:
+                min_val_cur, max_val_cur = clipping_range
         else:
+            if 'Group' in self.w_qconfig.quantizer:
+                X = X.reshape(-1, self.w_qconfig.group_size)
             min_val_cur, max_val_cur = observer(X)
         scale, zp = observer.calculate_qparams(min_val_cur, max_val_cur)
         if observer.ch_axis == -1:
@@ -81,6 +91,7 @@ class MigratorBase(nn.Module):
             X_q = fake_quantize_per_channel_affine(
                 X, scale, zp, observer.ch_axis,
                 observer.quant_min, observer.quant_max)
+        X_q = X_q.reshape(org_shape)
         return X_q
 
     def get_qoutput(self, input, weight, clipping_range=None):

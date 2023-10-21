@@ -25,7 +25,7 @@ fill-in-a-blank task with binary options, the goal is to choose the right option
 commonsense reasoning.
 """
 
-_URL = "/mnt/lustre/weixiuying/datasets/nlp_datasets/winogrande/winogrande_1.1.zip"
+_URL = "/mnt/lustre/weixiuying.vendor/datasets/nlp_datasets/winogrande/winogrande_1.1.zip"
 _FORMATS = ["xs", "s", "m", "l", "xl", "debiased"]
 
 

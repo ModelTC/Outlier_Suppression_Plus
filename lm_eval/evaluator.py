@@ -2,15 +2,13 @@ import collections
 import itertools
 import numpy as np
 import random
+import torch
 from easydict import EasyDict
 import lm_eval.metrics
 import lm_eval.models
 import lm_eval.tasks
 import lm_eval.base
 from lm_eval.utils import positional_deprecated, run_task_tests
-
-from quant_transformer.model.quant_model import quantize_model
-from quant_transformer.quantization.state import enable_quantization
 
 
 @positional_deprecated
@@ -27,11 +25,7 @@ def simple_evaluate(
     description_dict=None,
     check_integrity=False,
     decontamination_ngrams_path=None,
-    is_fp16=False,
-    is_quant=False,
-    is_export=False,
-    save_path=None,
-    q_config=None,
+    lm=None,
 ):
 
     """Instantiate and evaluate a model on a list of tasks.
@@ -64,32 +58,8 @@ def simple_evaluate(
     """
     random.seed(1234)
     np.random.seed(1234)
-
+    assert lm is not None
     assert tasks != [], "No tasks specified"
-
-    if isinstance(model, str):
-        if model_args is None:
-            model_args = ""
-        lm = lm_eval.models.get_model(model).create_from_arg_string(
-            model_args, {"batch_size": batch_size, "device": device, 'is_fp16': is_fp16}
-        )
-        # load quant models
-        if is_quant:
-            lm.model = quantize_model(lm.model, q_config)
-        lm.prepare_for_inference()
-    else:
-        assert isinstance(model, lm_eval.base.LM)
-        lm = model
-    if not no_cache:
-        lm = lm_eval.base.CachingLM(
-            lm,
-            "lm_cache/"
-            + model
-            + "_"
-            + model_args.replace("=", "-").replace(",", "_").replace("/", "-")
-            + ".db",
-        )
-        lm = lm.lm
     task_dict = lm_eval.tasks.get_task_dict(tasks)
 
     if check_integrity:
@@ -102,11 +72,6 @@ def simple_evaluate(
         bootstrap_iters=bootstrap_iters,
         description_dict=description_dict,
         decontamination_ngrams_path=decontamination_ngrams_path,
-        is_quant=is_quant,
-        is_export=is_export,
-        save_path=save_path,
-        q_config=q_config,
-        batch_size=batch_size
     )
 
     # add info about the model and few shot config
@@ -138,11 +103,6 @@ def evaluate(
     bootstrap_iters=100000,
     description_dict=None,
     decontamination_ngrams_path=None,
-    is_quant=False,
-    is_export=False,
-    save_path=None,
-    q_config=None,
-    batch_size=1,
 ):
     """Instantiate and evaluate a model on a list of tasks.
 
@@ -257,23 +217,6 @@ def evaluate(
     # all responses for each (task, doc)
     process_res_queue = collections.defaultdict(list)
 
-    from quant_transformer.solver.calibrate import calibrate
-    if is_export:
-        shift_list, scale_list = calibrate(lm, batch_size, q_config, True)
-        for i in range(len(shift_list)):
-            shift_list[i].cpu()
-            scale_list[i].cpu()
-        import torch
-        import os
-        print(save_path)
-        torch.save({
-            'shift_list': shift_list,
-            'scale_list': scale_list,
-        }, os.path.join(save_path, 'scale_shift_list.pth'))
-        return
-    if is_quant:
-        calibrate(lm, batch_size, q_config)
-        enable_quantization(lm.model)
     # execute each type of request
     for reqtype, reqs in requests.items():
         # TODO: right now, this code runs multiple separate LM requests for multiple Requests differing

@@ -19,7 +19,7 @@ _CITATION = """\
 # TODO(hellaswag):
 _DESCRIPTION = """
 """
-_URL = "/mnt/lustre/weixiuying/datasets/nlp_datasets/hellaswag/"
+_URL = "/mnt/lustre/weixiuying.vendor/datasets/nlp_datasets/hellaswag/"
 _URLS = {
     "train": _URL + "hellaswag_train.jsonl",
     "test": _URL + "hellaswag_test.jsonl",

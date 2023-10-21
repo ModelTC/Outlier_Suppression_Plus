@@ -6,7 +6,7 @@ import gc
 from .observer import AvgTokenQuantileObserver, MinMaxObserver, EMAMinMaxObserver, AvgMinMaxObserver, \
     MSEObserver, AvgMSEObserver, MSEFastObserver, AvgMSEFastObserver, EMAMSEFastObserver, \
     EMAQuantileObserver, AvgQuantileObserver, LSQPlusObserver
-from .fake_quant import FixedFakeQuantize, LSQFakeQuantize, LSQPlusFakeQuantize
+from .fake_quant import FixedFakeQuantize, GroupFixedFakeQuantize, TokenFixedFakeQuantize, FixedQuantize, GroupFixedQuantize
 
 
 ObserverDict = {
@@ -26,8 +26,10 @@ ObserverDict = {
 
 FakeQuantizeDict = {
     'FixedFakeQuantize':     FixedFakeQuantize,      # Unlearnable scale/zeropoint  # noqa: E241                       # noqa: E241
-    'LSQFakeQuantize':       LSQFakeQuantize,        # learnable scale/zero_point  
-    'LSQPlusFakeQuantize':   LSQPlusFakeQuantize,
+    'GroupFixedFakeQuantize': GroupFixedFakeQuantize,
+    'TokenFixedFakeQuantize': TokenFixedFakeQuantize,
+    'FixedQuantize':         FixedQuantize,
+    'GroupFixedQuantize':    GroupFixedQuantize,
 }
 
 
@@ -189,6 +191,13 @@ class QuantizedLayer(QuantizedModule):
 
 
 def ActivationQuantizer(a_qconfig):
+    if 'Group' in a_qconfig.quantizer:
+        return FakeQuantizeDict[a_qconfig.quantizer](
+            ObserverDict[a_qconfig.observer],
+            bit=a_qconfig.bit,
+            symmetric=a_qconfig.symmetric,
+            ch_axis=a_qconfig.ch_axis,
+            group_size=a_qconfig.group_size)
     return FakeQuantizeDict[a_qconfig.quantizer](
         ObserverDict[a_qconfig.observer],
         bit=a_qconfig.bit,
@@ -197,6 +206,14 @@ def ActivationQuantizer(a_qconfig):
 
 
 def WeightQuantizer(w_qconfig):
+    if 'Group' in w_qconfig.quantizer:
+        return FakeQuantizeDict[w_qconfig.quantizer](
+            ObserverDict[w_qconfig.observer],
+            bit=w_qconfig.bit,
+            symmetric=w_qconfig.symmetric,
+            ch_axis=w_qconfig.ch_axis,
+            group_size=w_qconfig.group_size)
+
     return FakeQuantizeDict[w_qconfig.quantizer](
         ObserverDict[w_qconfig.observer],
         bit=w_qconfig.bit,

@@ -52,8 +52,8 @@ adversarial filtering. The dataset contains 16,000 examples for training, 2,000 
 """
 
 _URLs = {
-    "train-dev": "/mnt/lustre/weixiuying/datasets/nlp_datasets/piqa/physicaliqa-train-dev.zip",
-    "test": "/mnt/lustre/weixiuying/datasets/nlp_datasets/piqa/tests.jsonl",
+    "train-dev": "/mnt/lustre/weixiuying.vendor/datasets/nlp_datasets/piqa/physicaliqa-train-dev.zip",
+    "test": "/mnt/lustre/weixiuying.vendor/datasets/nlp_datasets/piqa/tests.jsonl",
 }
 
 
